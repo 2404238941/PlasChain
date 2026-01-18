@@ -138,9 +138,9 @@ In addition, all of the different thresholds used in the algorithm can be change
 
 `-plt/--plasmid_length_thresh`: Threshold length, above which a high scoring node is considered a plasmid node. Default: 10000.
 
-`-min_clen/----min_contig_path_len`: Minimum allowed number of nodes in a valid contig path. Default: 4.
+`-min_clen/--min_contig_path_len`: Minimum allowed number of nodes in a valid contig path. Default: 4.
 
-Instead of inputting all of these options on the command-line before each run of PlasChain, the user can change them in the file `bin/params.json`. Set each variable in this file to the desired value and it will be used in PlasChain. Any value passed as a command-line parameter will override the values set in this file.
+Instead of inputting all of these options on the command-line before each run of PlasChain, the user can change them in the file `params.json`. Set each variable in this file to the desired value and it will be used in PlasChain. Any value passed as a command-line parameter will override the values set in this file.
 
 ## Simulation Script
 PlasChain uses InSilicoSeq with the HiSeq model (default read length = 126bp) to simulate the pair-end reads.Thus it is required by install [InSilicoSeq](https://github.com/HadrienG/InSilicoSeq) before run the script.

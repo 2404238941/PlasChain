@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# The entire SCAPP workflow
+# The entire plaschain workflow
 # Allow flexibility for different parts to be run manually
 import subprocess as sp
 import argparse
@@ -12,7 +12,7 @@ import shutil
 import time
 
 sys.path.append(os.path.realpath(os.path.expanduser(os.path.dirname(os.path.abspath(__file__)))))
-import scapp_utils as utils
+import plaschain_utils as utils
 import PARAMS
 
 import make_fasta_from_fastg # for creating the fasta for read mappings
@@ -24,7 +24,7 @@ import create_hits_fasta # for creating fasta of filtered plasmids
 
 def parse_user_input():
     parser = argparse.ArgumentParser(
-        description='SCAPP extracts likely plasmids from de novo assembly graphs'
+        description='plaschain extracts likely plasmids from de novo assembly graphs'
     )
     parser.add_argument('-g','--graph',
      help='Assembly graph FASTG file to process',
@@ -203,11 +203,11 @@ def main():
         raise
 
     # Set up logging and write config and options to the log file
-    logfile = os.path.join(logs_dir,"scapp.log")
+    logfile = os.path.join(logs_dir,"plaschain.log")
     logging.basicConfig(filemode='w', filename=logfile, level=logging.INFO, format='%(asctime)s: %(message)s', datefmt='%d/%m/%Y %H:%M')
-    logger = logging.getLogger("scapp_logger")
+    logger = logging.getLogger("plaschain_logger")
 
-    logger.info("Beginning SCAPP workflow")
+    logger.info("Beginning plaschain workflow")
     logger.info("Got parameters:\n\tInput graph: {}\n\tOutput directory: {} \n\tMaximum k value: {}\
     \n\t# processes: {}\n\tMaximum CV: {}\n\tMinimum Length: {}\n\tBamfile: {}\n\tReads file 1: {}\
     \n\tReads file 2: {}\n\tUse scores: {}\n\tUse genes: {}\n\tPath to BWA executables: {}\
@@ -220,7 +220,7 @@ def main():
 
     # Step 1: Map reads and create BAM file
     sorted_bam = os.path.join(int_dir, "reads_pe_primary.sort.bam")
-    if bamfile is None and os.path.exists(sorted_bam) ==False:
+    if bamfile is None:
         # first create fasta of contigs in only one direction
         time_start = time.time()
         logger.info('Creating fasta from fastg')
@@ -283,10 +283,7 @@ def main():
         time_end = time.time()
         logger.info("{} seconds to create indexed sorted bam file".format(
             time_end-time_start))
-    else:
-        if bamfile is None:
-            bamfile = sorted_bam
-        logger.info("Using file {} as the bamfile".format(bamfile))
+
 
     # Step 2: Classify contigs using PlasClass (default) and parse scores
     if use_scores and plasclass_file is None and plasflow_file is None:
@@ -326,7 +323,7 @@ def main():
     gene_hits_path = os.path.join(int_dir, "hit_seqs.out")
     genefiles_path = os.path.join(data_path,'nt')
     protfiles_path = os.path.join(data_path,'aa')
-    if use_genes and os.path.exists(gene_hits_path) == False:
+    if use_genes:
         print('Finding plasmid-specific genes with BLAST')
         time_start = time.time()
         logger.info('Finding plasmid-specific genes with BLAST')
@@ -358,15 +355,15 @@ def main():
         logger.info("{} seconds to find plasmid-specific gene hits".format(
             time_end-time_start))
 
-    # Step 4: Run SCAPP annotated-assembly-graph-based plasmid assembly
-    print("Starting SCAPP plasmid finding")
+    # Step 4: Run plaschain annotated-assembly-graph-based plasmid assembly
+    print("Starting plaschain plasmid finding")
     logger.info("Starting plasmid finding")
     time_start = time.time()
-    recycle.run_scapp(fastg, int_dir, bamfile, num_procs, max_k, \
+    recycle.run_plaschain(fastg, int_dir, bamfile, num_procs, max_k, \
                     gene_hits_path, use_genes, scores_file, use_scores,path_file ,\
                     PARAMS.MAX_CV, PARAMS.MIN_LENGTH,min_contig_path_len=min_contig_path_len)
     time_end = time.time()
-    logger.info("{} seconds to run SCAPP plasmid finding".format(
+    logger.info("{} seconds to run plaschain plasmid finding".format(
         time_end-time_start))
 
 

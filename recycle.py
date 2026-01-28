@@ -118,14 +118,19 @@ def run_scapp(fastg, outdir, bampath, num_procs, max_k, \
     fasta_ofile = os.path.join(outdir, basename+".cycs.fasta")
     cycs_ofile = os.path.join(outdir, basename+".cycs.paths.txt")
     seed_ofile = os.path.join(outdir, basename+".cycs.seeds.txt")
-    loop_ofile = os.path.join(outdir,basename+".self_loops.fasta")
+    # loop_ofile = os.path.join(outdir,basename+".self_loops.fasta")
+    isolated_loop_ofile = os.path.join(outdir,basename+".isolated.self_loops.fasta")
+    mate_pair_consistent_loop_ofile = os.path.join(outdir,basename+".consistent.self_loops.fasta")
     contig_path_ofile = os.path.join(outdir,basename+".contig.fasta")
     contig_path_score_ofile = os.path.join(outdir,basename+".contig.score.fasta")
 
     f_cycs_fasta = open(fasta_ofile, 'w') # output 1 - fasta of sequences
     f_cyc_paths = open(cycs_ofile, 'w') # output 2 - file containing path name (corr. to fasta),
     f_cyc_seeds = open(seed_ofile, 'w')
-    f_long_self_loops = open(loop_ofile,'w') # output 3 - file of self-loop fasta sequences
+    # f_long_self_loops = open(loop_ofile,'w') # output 3 - file of self-loop fasta sequences
+    f_isolated_self_loops = open(isolated_loop_ofile,'w')
+    f_consistent_self_loops = open(mate_pair_consistent_loop_ofile,'w')
+
     bamfile = pysam.AlignmentFile(bampath)
 
     # graph processing begins
@@ -174,7 +179,8 @@ def run_scapp(fastg, outdir, bampath, num_procs, max_k, \
     proxy_contig_dict =  add_contig_to_path_dict(G,scores_dict,node_score_dict,node_gene_set,path_dict,contigs_path_name_dict,node_to_contig,use_genes,use_scores)
     # gets set of long simple loops, removes short
     # simple loops from graph
-    long_self_loops = get_long_self_loops(G,node_score_dict,node_gene_set, min_length, SEQS, bamfile, use_scores, use_genes, max_k)
+    # long_self_loops = get_long_self_loops(G,node_score_dict,node_gene_set, min_length, SEQS, bamfile, use_scores, use_genes, max_k)
+    long_self_loops,isolated_self_loops,mate_pair_consistent_self_loops = get_long_self_loops(G, bamfile,max_k)
 
     for nd in long_self_loops:
         name = get_spades_type_name(path_count, nd,
@@ -185,8 +191,13 @@ def run_scapp(fastg, outdir, bampath, num_procs, max_k, \
         # print(nd)
         # print(" ")
         if len(seq)>=min_length:
+            if nd in isolated_self_loops:
+                f_isolated_self_loops.write(">" + name + "\n" + seq + "\n")
+            if nd in mate_pair_consistent_self_loops:
+                f_consistent_self_loops.write(">" + name + "\n" + seq + "\n")
+
             f_cycs_fasta.write(">" + name + "\n" + seq + "\n")
-            f_long_self_loops.write(">" + name + "\n" + seq + "\n")
+            # f_long_self_loops.write(">" + name + "\n" + seq + "\n")
             f_cyc_paths.write(name + "\n" +str(nd[0])+ "\n" +
             str(get_num_from_spades_name(nd[0])) + "\n")
             f_cyc_seeds.write(name + "\n" +str(nd[0])+ "\n" +
@@ -285,7 +296,8 @@ def run_scapp(fastg, outdir, bampath, num_procs, max_k, \
 
     f_cycs_fasta.close()
     f_cyc_paths.close()
-    f_long_self_loops.close()
+    f_isolated_self_loops.close()
+    f_consistent_self_loops.close()
 
 
 def main():

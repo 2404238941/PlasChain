@@ -374,61 +374,79 @@ def get_total_path_mass(path,G):
     return sum([get_length_from_spades_name(p) * \
         get_cov_from_spades_name_and_graph(p,G) for p in path])
 
-def get_long_self_loops(G,node_score_dict,node_gene_set, min_length, seqs, bamfile, use_scores=True, use_genes=True, max_k_val=77, score_thresh=0.9, mate_thresh = 0.1):
-    """ returns set of self loop nodes paths that are longer
-        than min length and satisfy mate pair requirements;
-        removes those and short self loops from G
-    """
-    potential_plasmids = set([])
-    to_remove = []
+# def get_long_self_loops(G,node_score_dict,node_gene_set, min_length, seqs, bamfile, use_scores=True, use_genes=True, max_k_val=77, score_thresh=0.9, mate_thresh = 0.1):
+#     """ returns set of self loop nodes paths that are longer
+#         than min length and satisfy mate pair requirements;
+#         removes those and short self loops from G
+#     """
+#     potential_plasmids = set([])
+#     to_remove = []
 
+#     for nd in list(nx.nodes_with_selfloops(G)):
+#         if (rc_node(nd),) in potential_plasmids: continue
+#         nd_path = (nd,)
+#         path_len = len(get_seq_from_path(nd_path, seqs, max_k_val))
+
+#         # check whether it is isolated or connected to other nodes:
+#         isolated_loop = False
+#         if G.in_degree(nd) == 1 and G.out_degree(nd)== 1:
+#             isolated_loop = True
+#         if isolated_loop:
+#             if path_len < min_length:
+#                 to_remove.append(nd)
+#                 continue
+
+#             # take nodes that have plasmid genes or very high plasmid scores
+#             if use_scores and use_genes:
+#                 logger.info("SLS: %f" % PARAMS.SELF_LOOP_SCORE_THRESH)
+#                 if node_score_dict[canonicalize(nd)] > PARAMS.SELF_LOOP_SCORE_THRESH or nd in node_gene_set:
+#                     potential_plasmids.add(nd_path)
+#                     logger.info("Added path: %s - high scoring long self-loop" % nd)
+#                     to_remove.append(nd)
+#                     continue
+
+#             off_node_mate_count, on_node_mate_count = count_selfloop_mates(nd,bamfile)
+#             if float(off_node_mate_count) > PARAMS.SELF_LOOP_MATE_THRESH*float(on_node_mate_count):
+#                 logger.info('Self loop %s has %2f percent off-node mate-pairs. Removing' % (nd,PARAMS.SELF_LOOP_MATE_THRESH))
+#                 to_remove.append(nd)
+#             else:
+#                 potential_plasmids.add(nd_path)
+#                 logger.info("Added path: %s  - long self loop" % nd)
+#                 to_remove.append(nd)
+#         else: # non-isolated loop
+#             if path_len < min_length: continue
+
+#             off_node_mate_count, on_node_mate_count = count_selfloop_mates(nd,bamfile)
+#             if float(off_node_mate_count) > PARAMS.SELF_LOOP_MATE_THRESH*float(on_node_mate_count):  # TODO: could be different than for isolated loop
+#                                                                                     # Maybe - func of node length (and read length, insert size???)
+#                 logger.info('Self loop %s has %2f percent off-node mate-pairs.' % (nd,PARAMS.SELF_LOOP_MATE_THRESH))
+#             else:
+#                 potential_plasmids.add(nd_path)
+#                 logger.info("Added path: %s  - long self loop" % nd)
+#                 to_remove.append(nd)
+
+#     for nd in to_remove:
+#         update_node_coverage(G, nd, 0)
+#     logger.info("Removing %d self-loop nodes" % len(to_remove))
+#     return potential_plasmids
+
+
+def get_long_self_loops(G,bamfile,max_k_val=77):
+    potential_plasmids = set([])
+    isolated_self_loops = set([])
+    mate_pair_consistent_self_loops = set([])
     for nd in list(nx.nodes_with_selfloops(G)):
         if (rc_node(nd),) in potential_plasmids: continue
         nd_path = (nd,)
-        path_len = len(get_seq_from_path(nd_path, seqs, max_k_val))
-
-        # check whether it is isolated or connected to other nodes:
-        isolated_loop = False
         if G.in_degree(nd) == 1 and G.out_degree(nd)== 1:
-            isolated_loop = True
-        if isolated_loop:
-            if path_len < min_length:
-                to_remove.append(nd)
-                continue
-
-            # take nodes that have plasmid genes or very high plasmid scores
-            if use_scores and use_genes:
-                logger.info("SLS: %f" % PARAMS.SELF_LOOP_SCORE_THRESH)
-                if node_score_dict[canonicalize(nd)] > PARAMS.SELF_LOOP_SCORE_THRESH or nd in node_gene_set:
-                    potential_plasmids.add(nd_path)
-                    logger.info("Added path: %s - high scoring long self-loop" % nd)
-                    to_remove.append(nd)
-                    continue
-
-            off_node_mate_count, on_node_mate_count = count_selfloop_mates(nd,bamfile)
-            if float(off_node_mate_count) > PARAMS.SELF_LOOP_MATE_THRESH*float(on_node_mate_count):
-                logger.info('Self loop %s has %2f percent off-node mate-pairs. Removing' % (nd,PARAMS.SELF_LOOP_MATE_THRESH))
-                to_remove.append(nd)
-            else:
-                potential_plasmids.add(nd_path)
-                logger.info("Added path: %s  - long self loop" % nd)
-                to_remove.append(nd)
-        else: # non-isolated loop
-            if path_len < min_length: continue
-
-            off_node_mate_count, on_node_mate_count = count_selfloop_mates(nd,bamfile)
-            if float(off_node_mate_count) > PARAMS.SELF_LOOP_MATE_THRESH*float(on_node_mate_count):  # TODO: could be different than for isolated loop
-                                                                                    # Maybe - func of node length (and read length, insert size???)
-                logger.info('Self loop %s has %2f percent off-node mate-pairs.' % (nd,PARAMS.SELF_LOOP_MATE_THRESH))
-            else:
-                potential_plasmids.add(nd_path)
-                logger.info("Added path: %s  - long self loop" % nd)
-                to_remove.append(nd)
-
-    for nd in to_remove:
-        update_node_coverage(G, nd, 0)
-    logger.info("Removing %d self-loop nodes" % len(to_remove))
-    return potential_plasmids
+            isolated_self_loops.add(nd_path)
+        off_node_mate_count, on_node_mate_count = count_selfloop_mates(nd,bamfile)
+        if float(off_node_mate_count) <= PARAMS.SELF_LOOP_MATE_THRESH*float(on_node_mate_count):
+            mate_pair_consistent_self_loops.add(nd_path)
+        potential_plasmids.add(nd_path)
+    
+    return potential_plasmids,isolated_self_loops,mate_pair_consistent_self_loops
+    
 
 def remove_hi_confidence_chromosome(G,node_to_contig,score_dict):
     """ Remove the long nodes that are predicted to likely be chromosomal
@@ -942,10 +960,18 @@ def enum_high_mass_shortest_paths(G,path_dict,node_gene_set,node_score_dict,node
             # G.add_edge(e[0], e[1], cost = (1./get_spades_base_mass(G, e[1])))
     valid_path_starts = set(path_dict[0].keys())
     logger.info("Getting shortest paths")
-    nodes = [n for n in current_nodes if (get_length_from_spades_name(n) >= 1000 \
-             or n in valid_path_starts\
-             or n in node_gene_set)
-            ]
+
+    self_loop_nodes = set(nx.nodes_with_selfloops(G))
+    
+    nodes = [
+        n for n in current_nodes 
+        if (
+            (get_length_from_spades_name(n) >= 1000 or 
+            n in valid_path_starts or 
+            n in node_gene_set)
+            and n not in self_loop_nodes
+        )
+    ]
     remain_nodes = len(nodes)
     print(str(remain_nodes) + " nodes remain in component")
     logger.info("Remaining nodes: %d" % (remain_nodes))
@@ -2182,7 +2208,8 @@ def merge_contig_path(path1, path2, nd,left_idx, right_idx):
     return path1[:left_idx] + path2[right_idx:]+path2[:right_idx] + path1[left_idx:]
 
 def meet_criterion(path, G, SEQS,max_k, max_CV,valid_pairs):
-    return get_wgtd_path_coverage_CV(path,G,SEQS,max_k_val=max_k) <= max_CV and is_good_cyc(path,valid_pairs)
+    # self-loop has been recorded
+    return get_wgtd_path_coverage_CV(path,G,SEQS,max_k_val=max_k) <= max_CV and is_good_cyc(path,valid_pairs) and len(path)>1
 
 def sort_key(path):
     return path[0]

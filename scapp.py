@@ -369,7 +369,8 @@ def main():
 
     basename, _ = os.path.splitext(os.path.basename(fastg))
     fasta_ofile = os.path.join(int_dir,basename+'.cycs.fasta')
-    self_loops_ofile = os.path.join(int_dir,basename+'.self_loops.fasta')
+    isolated_loop_ofile = os.path.join(int_dir,basename+".isolated.self_loops.fasta")
+    mate_pair_consistent_loop_ofile = os.path.join(int_dir,basename+".consistent.self_loops.fasta")
     # Step 5: Post-process filtering: BLAST output plasmids for plasmid-specific genes
     if use_genes:
         print("Filtering plasmids by plasmid-specific genes")
@@ -426,12 +427,19 @@ def main():
         parse_plasmid_scores.transformPlasClass(plasclass_filtered_file, plasmid_scores_file)
 
         classified_plasmids_fname = os.path.join(hit_plasmids_dir,"classified_cycs.out")
-        with open(plasmid_scores_file) as f, open(classified_plasmids_fname,'w') as o:
+        highly_confident_plasmid_fname = os.path.join(hit_plasmids_dir,"highly_confident_cycs.out")
+        with open(plasmid_scores_file) as f, open(classified_plasmids_fname,'w') as o, open(highly_confident_plasmid_fname,'w')as h :
             for line in f:
                 splt = line.strip().split()
                 if float(splt[1]) > PARAMS.CLASSIFICATION_THRESH: o.write(splt[0] + '\n')
+                if float(splt[1]) > 0.9: h.write(splt[0] + '\n')
+
+            
         classification_filtered_ofile = os.path.join(int_dir, basename+".classified_cycs.fasta")
         create_hits_fasta.create_hits(fasta_ofile, classified_plasmids_fname, classification_filtered_ofile)
+
+        highly_confident_filtered_ofile = os.path.join(int_dir, basename+".highly_confident_cycs.fasta")
+        create_hits_fasta.create_hits(fasta_ofile, highly_confident_plasmid_fname, highly_confident_filtered_ofile)
         sys.stdout = sys_stdout
         sys.stderr = sys_stderr
         stdfile.close()
@@ -457,10 +465,22 @@ def main():
             classified_set.add(name)
         fp.close()
 
-        self_loop_set = set()
-        fp = open(self_loops_ofile, 'r')
+        highly_confident_set = set()
+        fp = open(highly_confident_filtered_ofile, 'r')
         for name,_,_ in utils.readfq(fp):
-            self_loop_set.add(name)
+            highly_confident_set.add(name)
+        fp.close()
+
+        isolated_loop_set = set()
+        fp = open(isolated_loop_ofile, 'r')
+        for name,_,_ in utils.readfq(fp):
+            isolated_loop_set.add(name)
+        fp.close()
+
+        mate_pair_consistent_loop_set = set()
+        fp = open(mate_pair_consistent_loop_ofile, 'r')
+        for name,_,_ in utils.readfq(fp):
+            mate_pair_consistent_loop_set.add(name)
         fp.close()
 
         #modified 
@@ -491,12 +511,14 @@ def main():
             platon_filtered_set.add(name)
         fp.close()
 
-        classified_loops = classified_set & self_loop_set
-        gene_hit_loops = gene_hit_set & self_loop_set
+        # classified_loops = classified_set & self_loop_set
+        # gene_hit_loops = gene_hit_set & self_loop_set
+        classified_isolated_loops = isolated_loop_set & (gene_hit_set | highly_confident_set)
+        mate_pair_consistent_loops = mate_pair_consistent_loop_set & (gene_hit_set | classified_set)
         classified_gene_hit = gene_hit_set & classified_set
         classified_platon = classified_set & platon_filtered_set
 
-        confident_plasmid_set = classified_loops | classified_gene_hit | gene_hit_loops | classified_platon
+        confident_plasmid_set = classified_isolated_loops | classified_gene_hit | mate_pair_consistent_loops | classified_platon
 
         confident_plasmids_fname = os.path.join(hit_plasmids_dir,"confident_cycs.out")
         with open(confident_plasmids_fname,'w') as o:
